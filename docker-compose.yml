@@ -1,0 +1,40 @@
+version: "3.9"
+services:
+  api:
+    build: .
+    deploy:
+      mode: replicated
+      replicas: 2
+    ports:
+      - "3013-3014:3005"
+      - "50059-50060:50051"
+  
+  nginx:
+    image: nginx
+    volumes:
+    - ./configs/templates/nginx:/etc/nginx/templates
+    ports:
+    - "10008:80"
+    environment:
+    - HOST_API=${HOST_API}
+    depends_on:
+      - api
+
+  nginxGRPC:
+    image: nginx
+    volumes:
+      - ./configs/templates/nginxGRPC:/etc/nginx/templates
+      - ./configs/tls:/etc/nginx/certs
+    ports:
+      - "10009:1443"
+    environment:
+      - HOST_API=${HOST_API}
+    depends_on:
+      - api
+
+volumes:
+  redis-volume:
+    driver: local
+networks:
+  default:
+    name: indefinite-studies-notifications-service-network

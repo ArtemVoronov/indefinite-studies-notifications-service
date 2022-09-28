@@ -1,0 +1,14 @@
+upstream notifications-service-loadbalancer {
+    server ${HOST_API}:3013;
+    server ${HOST_API}:3014;
+}
+
+server {
+    listen       80;
+    listen  [::]:80;
+    server_name  localhost;
+
+    location / {
+        proxy_pass http://notifications-service-loadbalancer;
+    }
+}
