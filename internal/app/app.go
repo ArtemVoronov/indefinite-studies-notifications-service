@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 
+	notificationsGrpcApi "github.com/ArtemVoronov/indefinite-studies-notifications-service/internal/api/grpc/v1/notifications"
 	"github.com/ArtemVoronov/indefinite-studies-notifications-service/internal/api/rest/v1/ping"
 	"github.com/ArtemVoronov/indefinite-studies-notifications-service/internal/services"
 	"github.com/ArtemVoronov/indefinite-studies-utils/pkg/app"
@@ -70,7 +71,7 @@ func createRestApi(logger *logrus.Logger) *gin.Engine {
 }
 
 func createGrpcApi(s *grpc.Server) {
-	// authGRPC.RegisterServiceServer(s)
+	notificationsGrpcApi.RegisterServiceServer(s)
 }
 
 func authenicate(token string) (*auth.VerificationResult, error) {
