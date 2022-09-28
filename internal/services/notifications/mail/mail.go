@@ -20,7 +20,8 @@ func (s *EmailNotificationsService) Shutdown() error {
 	return nil
 }
 
-func (s *EmailNotificationsService) Send(sender string, recipient string, body string) error {
+func (s *EmailNotificationsService) SendEmail(sender string, recipient string, body string) error {
+	// TODO: solve problem with connecting to smtp server
 	c, err := smtp.Dial(s.host)
 	if err != nil {
 		return err

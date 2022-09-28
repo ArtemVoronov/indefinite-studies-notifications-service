@@ -17,7 +17,7 @@ func RegisterServiceServer(s *grpc.Server) {
 }
 
 func (s *NotificationsServiceServer) SendEmail(ctx context.Context, in *notifications.SendEmailRequest) (*notifications.SendEmailReply, error) {
-	err := services.Instance().Mail().Send(in.GetSender(), in.GetRecepient(), in.GetBody())
+	err := services.Instance().Mail().SendEmail(in.GetSender(), in.GetRecepient(), in.GetBody())
 	if err != nil {
 		return nil, err
 	}
