@@ -1,18 +1,23 @@
 package services
 
 import (
+	"encoding/json"
 	"log"
 	"sync"
 
 	"github.com/ArtemVoronov/indefinite-studies-notifications-service/internal/services/notifications/mail"
 	"github.com/ArtemVoronov/indefinite-studies-utils/pkg/app"
 	"github.com/ArtemVoronov/indefinite-studies-utils/pkg/services/auth"
+	kafkaService "github.com/ArtemVoronov/indefinite-studies-utils/pkg/services/kafka"
+	"github.com/ArtemVoronov/indefinite-studies-utils/pkg/services/watcher"
 	"github.com/ArtemVoronov/indefinite-studies-utils/pkg/utils"
+	"github.com/confluentinc/confluent-kafka-go/kafka"
 )
 
 type Services struct {
-	auth *auth.AuthGRPCService
-	mail *mail.EmailNotificationsService
+	auth    *auth.AuthGRPCService
+	mail    *mail.EmailNotificationsService
+	watcher *watcher.WatcherService
 }
 
 var once sync.Once
@@ -32,15 +37,48 @@ func createServices() *Services {
 	if err != nil {
 		log.Fatalf("unable to load TLS credentials")
 	}
+
+	mailService := mail.CreateEmailNotificationsService(utils.EnvVar("SMTP_SERVER_HOST") + ":" + utils.EnvVar("SMTP_SERVER_PORT"))
+
+	// TODO: user configured logrus
+	watcherService := watcher.CreateWatcherService(
+		utils.EnvVar("KAFKA_HOST")+":"+utils.EnvVar("KAFKA_PORT"),
+		utils.EnvVar("KAFKA_GROUP_ID"),
+		kafkaService.EVENT_TYPE_SEND_EMAIL,
+		30_000,
+		func(e *kafka.Message) {
+			var dto kafkaService.SendEmailEvent
+			err := json.Unmarshal(e.Value, &dto)
+			if err != nil {
+				log.Printf("Error during parsing SEND_MAIL event message: %s\n", err)
+				return
+			}
+
+			// TODO: clean logging
+			log.Printf("Message on %s: %s\n", e.TopicPartition, dto)
+			// TODO: uncomment after fixing sending emails bug
+			// err = mailService.SendEmail(dto.Sender, dto.Recepient, dto.Subject+dto.Body)
+			// if err != nil {
+			// 	log.Printf("Error during sending email: %s\n", err)
+			// }
+		},
+
+		func(e error) {
+			log.Printf("Error during watching events: %s\n", e)
+		},
+	)
+
 	return &Services{
-		auth: auth.CreateAuthGRPCService(utils.EnvVar("AUTH_SERVICE_GRPC_HOST")+":"+utils.EnvVar("AUTH_SERVICE_GRPC_PORT"), &authcreds),
-		mail: mail.CreateEmailNotificationsService(utils.EnvVar("SMTP_SERVER_HOST") + ":" + utils.EnvVar("SMTP_SERVER_PORT")),
+		auth:    auth.CreateAuthGRPCService(utils.EnvVar("AUTH_SERVICE_GRPC_HOST")+":"+utils.EnvVar("AUTH_SERVICE_GRPC_PORT"), &authcreds),
+		mail:    mailService,
+		watcher: watcherService,
 	}
 }
 
 func (s *Services) Shutdown() {
 	s.auth.Shutdown()
 	s.mail.Shutdown()
+	s.watcher.Shutdown()
 }
 
 func (s *Services) Auth() *auth.AuthGRPCService {

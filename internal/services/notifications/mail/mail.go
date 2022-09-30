@@ -22,6 +22,12 @@ func (s *EmailNotificationsService) Shutdown() error {
 
 func (s *EmailNotificationsService) SendEmail(sender string, recipient string, body string) error {
 	// TODO: solve problem with connecting to smtp server
+	// TODO cleab
+	fmt.Printf("-------------------- s.host: %v\n", s.host)
+	fmt.Printf("-------------------- sender: %v\n", sender)
+	fmt.Printf("-------------------- recipient: %v\n", recipient)
+	fmt.Printf("-------------------- body: %v\n", body)
+
 	c, err := smtp.Dial(s.host)
 	if err != nil {
 		return err
