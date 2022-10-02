@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"sync"
+	"time"
 
 	"github.com/ArtemVoronov/indefinite-studies-notifications-service/internal/services/notifications/mail"
 	"github.com/ArtemVoronov/indefinite-studies-utils/pkg/app"
@@ -38,9 +39,12 @@ func createServices() *Services {
 		log.Fatalf("unable to load TLS credentials")
 	}
 
-	mailService := mail.CreateEmailNotificationsService(utils.EnvVar("SMTP_SERVER_HOST") + ":" + utils.EnvVar("SMTP_SERVER_PORT"))
+	mailService := mail.CreateEmailNotificationsService(
+		utils.EnvVar("SMTP_SERVER_HOST")+":"+utils.EnvVar("SMTP_SERVER_PORT"),
+		utils.EnvVarDurationDefault("SMPT_SERVER_CONNECT_TIMEOUT_IN_SECONDS", time.Second, 10*time.Second),
+	)
 
-	// TODO: user configured logrus
+	// TODO: use configured logrus
 	watcherService := watcher.CreateWatcherService(
 		utils.EnvVar("KAFKA_HOST")+":"+utils.EnvVar("KAFKA_PORT"),
 		utils.EnvVar("KAFKA_GROUP_ID"),
@@ -56,11 +60,11 @@ func createServices() *Services {
 
 			// TODO: clean logging
 			log.Printf("Message on %s: %s\n", e.TopicPartition, dto)
-			// TODO: uncomment after fixing sending emails bug
-			// err = mailService.SendEmail(dto.Sender, dto.Recepient, dto.Subject+dto.Body)
-			// if err != nil {
-			// 	log.Printf("Error during sending email: %s\n", err)
-			// }
+
+			err = mailService.SendEmail(dto.Sender, dto.Recepient, dto.Subject, dto.Body)
+			if err != nil {
+				log.Printf("Error during sending email: %s\n", err)
+			}
 		},
 
 		func(e error) {

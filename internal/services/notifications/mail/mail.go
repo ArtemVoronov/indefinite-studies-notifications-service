@@ -2,17 +2,23 @@ package mail
 
 import (
 	"fmt"
+	"net"
 	"net/smtp"
+	"time"
 )
 
+// TODO: add tls using
 // TODO: add authenication
+// TODO: add keep alive connection
 type EmailNotificationsService struct {
-	host string
+	smtpServerAddr string
+	connectTimeout time.Duration
 }
 
-func CreateEmailNotificationsService(host string) *EmailNotificationsService {
+func CreateEmailNotificationsService(smtpServerAddr string, connectTimeout time.Duration) *EmailNotificationsService {
 	return &EmailNotificationsService{
-		host: host,
+		smtpServerAddr: smtpServerAddr,
+		connectTimeout: connectTimeout,
 	}
 }
 
@@ -20,18 +26,22 @@ func (s *EmailNotificationsService) Shutdown() error {
 	return nil
 }
 
-func (s *EmailNotificationsService) SendEmail(sender string, recipient string, body string) error {
-	// TODO: solve problem with connecting to smtp server
-	// TODO cleab
-	fmt.Printf("-------------------- s.host: %v\n", s.host)
-	fmt.Printf("-------------------- sender: %v\n", sender)
-	fmt.Printf("-------------------- recipient: %v\n", recipient)
-	fmt.Printf("-------------------- body: %v\n", body)
+func (s *EmailNotificationsService) SendEmail(sender string, recipient string, subject string, body string) error {
+	msg := "To: " + recipient + "\r\n" +
+		"Subject: " + subject + "\r\n" +
+		"\r\n" + body + "\r\n"
 
-	c, err := smtp.Dial(s.host)
+	conn, err := net.DialTimeout("tcp", s.smtpServerAddr, s.connectTimeout)
 	if err != nil {
 		return err
 	}
+	defer conn.Close()
+
+	c, err := smtp.NewClient(conn, s.smtpServerAddr)
+	if err != nil {
+		return err
+	}
+	defer c.Quit()
 
 	if err := c.Mail(sender); err != nil {
 		return err
@@ -44,16 +54,11 @@ func (s *EmailNotificationsService) SendEmail(sender string, recipient string, b
 	if err != nil {
 		return err
 	}
-	_, err = fmt.Fprint(wc, body)
+	_, err = fmt.Fprint(wc, msg)
 	if err != nil {
 		return err
 	}
 	err = wc.Close()
-	if err != nil {
-		return err
-	}
-
-	err = c.Quit()
 	if err != nil {
 		return err
 	}
