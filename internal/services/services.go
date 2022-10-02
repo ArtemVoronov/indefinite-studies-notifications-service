@@ -2,12 +2,13 @@ package services
 
 import (
 	"encoding/json"
-	"log"
+	"fmt"
 	"sync"
 	"time"
 
 	"github.com/ArtemVoronov/indefinite-studies-notifications-service/internal/services/notifications/mail"
 	"github.com/ArtemVoronov/indefinite-studies-utils/pkg/app"
+	"github.com/ArtemVoronov/indefinite-studies-utils/pkg/log"
 	"github.com/ArtemVoronov/indefinite-studies-utils/pkg/services/auth"
 	kafkaService "github.com/ArtemVoronov/indefinite-studies-utils/pkg/services/kafka"
 	"github.com/ArtemVoronov/indefinite-studies-utils/pkg/services/watcher"
@@ -36,7 +37,7 @@ func Instance() *Services {
 func createServices() *Services {
 	authcreds, err := app.LoadTLSCredentialsForClient(utils.EnvVar("AUTH_SERVICE_CLIENT_TLS_CERT_PATH"))
 	if err != nil {
-		log.Fatalf("unable to load TLS credentials")
+		log.Fatalf("unable to load TLS credentials: %s", err)
 	}
 
 	mailService := mail.CreateEmailNotificationsService(
@@ -54,21 +55,21 @@ func createServices() *Services {
 			var dto kafkaService.SendEmailEvent
 			err := json.Unmarshal(e.Value, &dto)
 			if err != nil {
-				log.Printf("Error during parsing SEND_MAIL event message: %s\n", err)
+				log.Error("Error during parsing SEND_MAIL event message", err.Error())
 				return
 			}
 
 			// TODO: clean logging
-			log.Printf("Message on %s: %s\n", e.TopicPartition, dto)
+			log.Info(fmt.Sprintf("Message on %s: %s\n", e.TopicPartition, dto))
 
 			err = mailService.SendEmail(dto.Sender, dto.Recepient, dto.Subject, dto.Body)
 			if err != nil {
-				log.Printf("Error during sending email: %s\n", err)
+				log.Error("Error during sending email", err.Error())
 			}
 		},
 
 		func(e error) {
-			log.Printf("Error during watching events: %s\n", e)
+			log.Error("Error during watching events", err.Error())
 		},
 	)
 
@@ -79,10 +80,24 @@ func createServices() *Services {
 	}
 }
 
-func (s *Services) Shutdown() {
-	s.auth.Shutdown()
-	s.mail.Shutdown()
-	s.watcher.Shutdown()
+func (s *Services) Shutdown() error {
+	result := []error{}
+	err := s.auth.Shutdown()
+	if err != nil {
+		result = append(result, err)
+	}
+	err = s.mail.Shutdown()
+	if err != nil {
+		result = append(result, err)
+	}
+	err = s.watcher.Shutdown()
+	if err != nil {
+		result = append(result, err)
+	}
+	if len(result) > 0 {
+		return fmt.Errorf("errors during shutdown: %v", result)
+	}
+	return nil
 }
 
 func (s *Services) Auth() *auth.AuthGRPCService {
