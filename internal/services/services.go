@@ -69,7 +69,7 @@ func createServices() *Services {
 		},
 
 		func(e error) {
-			log.Error("Error during watching events", err.Error())
+			log.Error("Error during watching events", e.Error())
 		},
 	)
 
