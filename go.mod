@@ -3,7 +3,7 @@ module github.com/ArtemVoronov/indefinite-studies-notifications-service
 go 1.18
 
 require (
-	github.com/ArtemVoronov/indefinite-studies-utils v0.0.0-20221004175300-d1469db28374
+	github.com/ArtemVoronov/indefinite-studies-utils v0.0.0-20221010084255-cfc0616068c5
 	github.com/confluentinc/confluent-kafka-go v1.9.2
 	github.com/gin-contrib/expvar v0.0.1
 	github.com/gin-gonic/gin v1.8.1
